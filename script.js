@@ -47,8 +47,34 @@ function applyCVDCorrection(img) {
   correctedCtx.putImageData(correctedData, 0, 0);
 }
 
-// 4. LMS Color Space Functions (To Be Implemented Next)
+function rgbToLms(r, g, b) {
+  const l = 0.3904725 * r + 0.54990437 * g + 0.00890159 * b;
+  const m = 0.07092586 * r + 0.96310739 * g + 0.00135709 * b;
+  const s = 0.02314268 * r + 0.12801221 * g + 0.93624394 * b;
+  return [l, m, s];
+}
+
+function lmsToRgb(l, m, s) {
+  const r = 2.85831110 * l - 1.62870796 * m - 0.02482469 * s;
+  const g = -0.21018126 * l + 1.15820096 * m + 0.00032428 * s;
+  const b = -0.04181125 * l - 0.11817878 * m + 1.06871126 * s;
+  return [r, g, b];
+}
+
+
 function simulateCVD(imageData, cvdType, intensity) {
-  // Your LMS logic from earlier goes here!
-  return correctedImageData;
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i], g = data[i+1], b = data[i+2];
+    let [l, m, s] = rgbToLms(r, g, b);
+
+    // Apply CVD simulation (e.g., Protanopia: L-cones disabled)
+    if (cvdType === 'protanopia') l = 0;
+    else if (cvdType === 'deuteranopia') m = 0;
+    else if (cvdType === 'tritanopia') s = 0;
+
+    [r, g, b] = lmsToRgb(l, m, s);
+    data.set([r, g, b, 255], i); // Alpha = 255
+  }
+  return imageData;
 }
