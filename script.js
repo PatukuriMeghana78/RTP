@@ -103,3 +103,12 @@ function showLoading() {
 function hideLoading() {
   document.body.classList.remove('loading');
 }
+const downloadBtn = document.createElement('button');
+downloadBtn.textContent = 'Download Corrected Image';
+downloadBtn.addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'corrected-image.png';
+  link.href = correctedCanvas.toDataURL('image/png');
+  link.click();
+});
+document.querySelector('#results').appendChild(downloadBtn);
