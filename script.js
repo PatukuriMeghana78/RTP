@@ -97,3 +97,9 @@ cameraBtn.addEventListener('click', async () => {
     alert("Camera access denied: " + error.message);
   }
 });
+function showLoading() {
+  document.body.classList.add('loading');
+}
+function hideLoading() {
+  document.body.classList.remove('loading');
+}
