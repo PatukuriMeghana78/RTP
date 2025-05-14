@@ -78,3 +78,22 @@ function simulateCVD(imageData, cvdType, intensity) {
   }
   return imageData;
 }
+cameraBtn.addEventListener('click', async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.play();
+    
+    // Process frames every 100ms
+    setInterval(() => {
+      originalCanvas.width = video.videoWidth;
+      originalCanvas.height = video.videoHeight;
+      const ctx = originalCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      applyCVDCorrection(video); // Reuse the same function
+    }, 100);
+  } catch (error) {
+    alert("Camera access denied: " + error.message);
+  }
+});
