@@ -24,9 +24,18 @@ function simulateCVD(imageData, cvdType) {
 
     // Apply CVD simulation
     switch(cvdType) {
-      case 'protanopia': l = 0; break;
-      case 'deuteranopia': m = 0; break;
-      case 'tritanopia': s = 0; break;
+      case 'protanopia':
+        // Remove L-cone response (red deficiency)
+        l = 0.0 * l + 2.02344 * m - 2.52580 * s;
+        break;
+      case 'deuteranopia':
+        // Remove M-cone response (green deficiency)
+        m = 0.494207 * l + 0.0 * m + 1.24827 * s;
+        break;
+      case 'tritanopia':
+        // Remove S-cone response (blue deficiency)
+        s = -0.395913 * l + 0.801109 * m + 0.0 * s;
+        break;
     }
 
     [r, g, b] = lmsToRgb(l, m, s);
