@@ -34,6 +34,9 @@ function drawImageToCanvas(image, canvas) {
 function processImageWithWorker(imageData) {
   showLoading();
   
+  correctedCanvas.width = originalCanvas.width;
+  correctedCanvas.height = originalCanvas.height;
+
   const worker = new Worker('worker.js');
   
   worker.onmessage = (e) => {
