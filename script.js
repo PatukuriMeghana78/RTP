@@ -118,3 +118,22 @@ downloadBtn.addEventListener('click', () => {
   link.href = correctedCanvas.toDataURL('image/png');
   link.click();
 });
+
+video.onplaying = () => {
+  const processFrame = () => {
+    if (!cameraStream) return;
+    
+    // Set canvas dimensions to video dimensions
+    originalCanvas.width = video.videoWidth;
+    originalCanvas.height = video.videoHeight;
+    correctedCanvas.width = video.videoWidth;
+    correctedCanvas.height = video.videoHeight;
+    
+    originalCtx.drawImage(video, 0, 0);
+    const imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
+    processImageWithWorker(imageData);
+    
+    requestAnimationFrame(processFrame);
+  };
+  requestAnimationFrame(processFrame);
+};
