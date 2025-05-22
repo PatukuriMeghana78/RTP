@@ -1,151 +1,197 @@
 // DOM Elements
-const uploadInput = document.getElementById('image-upload');
-const cameraBtn = document.getElementById('camera-btn');
-const downloadBtn = document.getElementById('download-btn');
-const cvdTypeSelect = document.getElementById('cvd-type');
-const originalCanvas = document.getElementById('original-canvas');
-const correctedCanvas = document.getElementById('corrected-canvas');
-const loadingIndicator = document.getElementById('loading');
+const elements = {
+  uploadInput: document.getElementById('image-upload'),
+  cameraBtn: document.getElementById('camera-btn'),
+  downloadBtn: document.getElementById('download-btn'),
+  cvdTypeSelect: document.getElementById('cvd-type'),
+  intensitySlider: document.getElementById('intensity'),
+  intensityValue: document.getElementById('intensity-value'),
+  originalCanvas: document.getElementById('original-canvas'),
+  correctedCanvas: document.getElementById('corrected-canvas'),
+  loadingIndicator: document.getElementById('loading'),
+  errorMessage: document.getElementById('error-message')
+};
 
 // Canvas Contexts
-const originalCtx = originalCanvas.getContext('2d');
-const correctedCtx = correctedCanvas.getContext('2d');
+const ctx = {
+  original: elements.originalCanvas.getContext('2d'),
+  corrected: elements.correctedCanvas.getContext('2d')
+};
 
 // State
-let cameraStream = null;
+const state = {
+  cameraStream: null,
+  isProcessing: false
+};
 
 // Helper Functions
 function showLoading() {
-  loadingIndicator.style.display = 'block';
+  elements.loadingIndicator.style.display = 'flex';
+  state.isProcessing = true;
 }
 
 function hideLoading() {
-  loadingIndicator.style.display = 'none';
+  elements.loadingIndicator.style.display = 'none';
+  state.isProcessing = false;
+}
+
+function showError(message) {
+  elements.errorMessage.textContent = message;
+  elements.errorMessage.classList.remove('hidden');
+  setTimeout(() => elements.errorMessage.classList.add('hidden'), 5000);
 }
 
 function drawImageToCanvas(image, canvas) {
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(image, 0, 0);
+  const aspectRatio = image.width / image.height;
+  const maxWidth = window.innerWidth * 0.4;
+  const maxHeight = window.innerHeight * 0.7;
+  
+  let width = image.width;
+  let height = image.height;
+  
+  if (width > maxWidth) {
+    width = maxWidth;
+    height = width / aspectRatio;
+  }
+  
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * aspectRatio;
+  }
+  
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext('2d').drawImage(image, 0, 0, width, height);
 }
 
-// Image Processing via Web Worker
 function processImageWithWorker(imageData) {
-  if (imageData.width === 0 || imageData.height === 0) {
-    console.error("Invalid image dimensions");
-    return;
-  }
+  if (state.isProcessing) return;
+  
   showLoading();
   
-  correctedCanvas.width = originalCanvas.width;
-  correctedCanvas.height = originalCanvas.height;
-
   const worker = new Worker('worker.js');
   
   worker.onmessage = (e) => {
-  if (e.data.error) {
-    console.error('Worker error:', e.data.error);
+    if (e.data.error) {
+      showError(`Processing failed: ${e.data.error}`);
+      hideLoading();
+      return;
+    }
+    
+    ctx.corrected.putImageData(e.data, 0, 0);
     hideLoading();
-    return;
-  }
-  correctedCtx.putImageData(e.data, 0, 0);
-  hideLoading();
-};
+    worker.terminate();
+  };
   
   worker.onerror = (error) => {
-    console.error('Worker error:', error);
+    showError(`Worker error: ${error.message}`);
     hideLoading();
     worker.terminate();
   };
   
   worker.postMessage({
     imageData: imageData,
-    cvdType: cvdTypeSelect.value,
-    intensity: document.getElementById('intensity').value / 100 
+    cvdType: elements.cvdTypeSelect.value,
+    intensity: elements.intensitySlider.value / 100
   }, [imageData.data.buffer]);
 }
 
 // Event Listeners
-uploadInput.addEventListener('change', (e) => {
+elements.uploadInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const img = new Image();
-    img.src = event.target.result;
-    img.onload = () => {
-      drawImageToCanvas(img, originalCanvas);
-      const imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
-      processImageWithWorker(imageData);
-    };
-  };
-  reader.readAsDataURL(file);
-});
-
-cameraBtn.addEventListener('click', async () => {
   try {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-      cameraBtn.textContent = 'Enable Camera';
-      cameraStream = null;
-      return;
-    }
-
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    cameraBtn.textContent = 'Disable Camera';
-    
-    const video = document.createElement('video');
-    video.srcObject = cameraStream;
-    video.play();
-    
-    video.onplaying = () => {
-      const processFrame = () => {
-        if (!cameraStream) return;
-        
-        // Sync canvas sizes
-        originalCanvas.width = video.videoWidth;
-        originalCanvas.height = video.videoHeight;
-        correctedCanvas.width = video.videoWidth;
-        correctedCanvas.height = video.videoHeight;
-        
-        originalCtx.drawImage(video, 0, 0);
-        const imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
-        processImageWithWorker(imageData);
-        
-        requestAnimationFrame(processFrame);
+    const img = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = event.target.result;
       };
-      requestAnimationFrame(processFrame);
-    };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    drawImageToCanvas(img, elements.originalCanvas);
+    const imageData = ctx.original.getImageData(0, 0, elements.originalCanvas.width, elements.originalCanvas.height);
+    processImageWithWorker(imageData);
   } catch (error) {
-    console.error('Camera error:', error);
-    alert('Camera error: ' + error.message);
+    showError(`Failed to load image: ${error.message}`);
   }
 });
 
-downloadBtn.addEventListener('click', () => {
+elements.cameraBtn.addEventListener('click', async () => {
+  try {
+    if (state.cameraStream) {
+      state.cameraStream.getTracks().forEach(track => track.stop());
+      elements.cameraBtn.textContent = 'Enable Camera';
+      state.cameraStream = null;
+      return;
+    }
+
+    state.cameraStream = await navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: 'environment' } 
+    });
+    elements.cameraBtn.textContent = 'Disable Camera';
+    
+    const video = document.createElement('video');
+    video.srcObject = state.cameraStream;
+    await video.play();
+    
+    const processFrame = () => {
+      if (!state.cameraStream) return;
+      
+      elements.originalCanvas.width = video.videoWidth;
+      elements.originalCanvas.height = video.videoHeight;
+      elements.correctedCanvas.width = video.videoWidth;
+      elements.correctedCanvas.height = video.videoHeight;
+      
+      ctx.original.drawImage(video, 0, 0);
+      
+      if (!state.isProcessing) {
+        const imageData = ctx.original.getImageData(
+          0, 0, 
+          elements.originalCanvas.width, 
+          elements.originalCanvas.height
+        );
+        processImageWithWorker(imageData);
+      }
+      
+      requestAnimationFrame(processFrame);
+    };
+    
+    processFrame();
+  } catch (error) {
+    showError(`Camera error: ${error.message}`);
+  }
+});
+
+elements.downloadBtn.addEventListener('click', () => {
+  if (!elements.correctedCanvas.toDataURL().includes('image/png')) {
+    showError('No corrected image available');
+    return;
+  }
+  
   const link = document.createElement('a');
-  link.download = 'corrected-image.png';
-  link.href = correctedCanvas.toDataURL('image/png');
+  link.download = `corrected-${elements.cvdTypeSelect.value}-${Date.now()}.png`;
+  link.href = elements.correctedCanvas.toDataURL('image/png');
   link.click();
 });
 
-video.onplaying = () => {
-  const processFrame = () => {
-    if (!cameraStream) return;
-    
-    // Set canvas dimensions to video dimensions
-    originalCanvas.width = video.videoWidth;
-    originalCanvas.height = video.videoHeight;
-    correctedCanvas.width = video.videoWidth;
-    correctedCanvas.height = video.videoHeight;
-    
-    originalCtx.drawImage(video, 0, 0);
-    const imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
+elements.intensitySlider.addEventListener('input', () => {
+  elements.intensityValue.textContent = `${elements.intensitySlider.value}%`;
+  
+  if (elements.originalCanvas.toDataURL().includes('image/png')) {
+    const imageData = ctx.original.getImageData(
+      0, 0, 
+      elements.originalCanvas.width, 
+      elements.originalCanvas.height
+    );
     processImageWithWorker(imageData);
-    
-    requestAnimationFrame(processFrame);
-  };
-  requestAnimationFrame(processFrame);
-};
+  }
+});
+
+// Initialize
+elements.intensityValue.textContent = `${elements.intensitySlider.value}%`;
