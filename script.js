@@ -42,46 +42,42 @@ function showError(message) {
 }
 
 function drawImageToCanvas(image, canvas) {
-  const aspectRatio = image.width / image.height;
-  const maxWidth = window.innerWidth * 0.4;
-  const maxHeight = window.innerHeight * 0.7;
+  // Set display dimensions (CSS)
+  const displayWidth = Math.min(image.width, window.innerWidth * 0.45);
+  const displayHeight = (displayWidth / image.width) * image.height;
   
-  let width = image.width;
-  let height = image.height;
+  // Set backing store dimensions (actual pixels)
+  canvas.width = image.width;
+  canvas.height = image.height;
   
-  if (width > maxWidth) {
-    width = maxWidth;
-    height = width / aspectRatio;
-  }
+  // Scale down for display but maintain full resolution
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, displayWidth, displayHeight);
   
-  if (height > maxHeight) {
-    height = maxHeight;
-    width = height * aspectRatio;
-  }
-  
-  canvas.width = width;
-  canvas.height = height;
-  canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+  // Update CSS dimensions
+  canvas.style.width = `${displayWidth}px`;
+  canvas.style.height = `${displayHeight}px`;
 }
 
+// In script.js
 function processImageWithWorker(imageData) {
-  if (state.isProcessing) return;
-  
   showLoading();
   
-  const worker = new Worker('worker.js');
+  // Create fresh ImageData to avoid transfer issues
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = imageData.width;
+  tempCanvas.height = imageData.height;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.putImageData(imageData, 0, 0);
   
-  worker.onmessage = (e) => {
-    if (e.data.error) {
-      showError(`Processing failed: ${e.data.error}`);
-      hideLoading();
-      return;
-    }
-    
-    ctx.corrected.putImageData(e.data, 0, 0);
-    hideLoading();
-    worker.terminate();
-  };
+  const worker = new Worker('worker.js');
+  worker.postMessage({
+    width: imageData.width,
+    height: imageData.height,
+    imageData: tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
+  }, [tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data.buffer]);
+  // ... rest of worker handling
+}
   
   worker.onerror = (error) => {
     showError(`Worker error: ${error.message}`);
