@@ -32,6 +32,10 @@ function drawImageToCanvas(image, canvas) {
 
 // Image Processing via Web Worker
 function processImageWithWorker(imageData) {
+  if (imageData.width === 0 || imageData.height === 0) {
+    console.error("Invalid image dimensions");
+    return;
+  }
   showLoading();
   
   correctedCanvas.width = originalCanvas.width;
@@ -40,19 +44,25 @@ function processImageWithWorker(imageData) {
   const worker = new Worker('worker.js');
   
   worker.onmessage = (e) => {
-    correctedCtx.putImageData(e.data, 0, 0);
+  if (e.data.error) {
+    console.error('Worker error:', e.data.error);
     hideLoading();
-    worker.terminate();
-  };
+    return;
+  }
+  correctedCtx.putImageData(e.data, 0, 0);
+  hideLoading();
+};
   
   worker.onerror = (error) => {
     console.error('Worker error:', error);
     hideLoading();
+    worker.terminate();
   };
   
   worker.postMessage({
     imageData: imageData,
-    cvdType: cvdTypeSelect.value
+    cvdType: cvdTypeSelect.value,
+    intensity: document.getElementById('intensity').value / 100 
   }, [imageData.data.buffer]);
 }
 
@@ -77,7 +87,6 @@ uploadInput.addEventListener('change', (e) => {
 cameraBtn.addEventListener('click', async () => {
   try {
     if (cameraStream) {
-      // Stop existing stream
       cameraStream.getTracks().forEach(track => track.stop());
       cameraBtn.textContent = 'Enable Camera';
       cameraStream = null;
@@ -95,10 +104,13 @@ cameraBtn.addEventListener('click', async () => {
       const processFrame = () => {
         if (!cameraStream) return;
         
+        // Sync canvas sizes
         originalCanvas.width = video.videoWidth;
         originalCanvas.height = video.videoHeight;
-        originalCtx.drawImage(video, 0, 0);
+        correctedCanvas.width = video.videoWidth;
+        correctedCanvas.height = video.videoHeight;
         
+        originalCtx.drawImage(video, 0, 0);
         const imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
         processImageWithWorker(imageData);
         
@@ -108,7 +120,7 @@ cameraBtn.addEventListener('click', async () => {
     };
   } catch (error) {
     console.error('Camera error:', error);
-    alert('Could not access camera: ' + error.message);
+    alert('Camera error: ' + error.message);
   }
 });
 
