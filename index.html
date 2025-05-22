@@ -3,39 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI CVD Color Correction</title>
+  <title>AI CVD Color Correction Tool</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <header>
       <h1>Color Vision Deficiency Correction</h1>
-      <p>Upload an image or use camera</p>
+      <p>Upload an image or use camera to experience color adjustments</p>
     </header>
 
     <div class="controls">
-      <input type="file" id="image-upload" accept="image/*">
-      <button id="camera-btn">Enable Camera</button>
-      <select id="cvd-type">
-        <option value="protanopia">Protanopia</option>
-        <option value="deuteranopia">Deuteranopia</option>
-        <option value="tritanopia">Tritanopia</option>
-      </select>
-      <button id="download-btn">Download Result</button>
+      <div class="control-group">
+        <input type="file" id="image-upload" accept="image/*">
+        <button id="camera-btn">Enable Camera</button>
+      </div>
+      
+      <div class="control-group">
+        <label for="cvd-type">CVD Type:</label>
+        <select id="cvd-type">
+          <option value="protanopia">Protanopia (Red-Weak)</option>
+          <option value="deuteranopia">Deuteranopia (Green-Weak)</option>
+          <option value="tritanopia">Tritanopia (Blue-Weak)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="intensity">Intensity: <span id="intensity-value">50%</span></label>
+        <input type="range" id="intensity" min="0" max="100" value="50">
+      </div>
+
+      <button id="download-btn">Download Corrected Image</button>
     </div>
 
     <div class="canvas-container">
-      <div>
+      <div class="canvas-wrapper">
         <h3>Original</h3>
         <canvas id="original-canvas"></canvas>
       </div>
-      <div>
+      <div class="canvas-wrapper">
         <h3>Corrected</h3>
         <canvas id="corrected-canvas"></canvas>
       </div>
     </div>
 
-    <div id="loading">Processing...</div>
+    <div id="loading">
+      <div class="spinner"></div>
+      <p>Processing...</p>
+    </div>
+
+    <div id="error-message" class="hidden"></div>
   </div>
 
   <script src="script.js"></script>
