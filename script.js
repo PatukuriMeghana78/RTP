@@ -191,3 +191,12 @@ elements.intensitySlider.addEventListener('input', () => {
 
 // Initialize
 elements.intensityValue.textContent = `${elements.intensitySlider.value}%`;
+// Right after getting imageData in upload/camera handlers:
+const imageData = ctx.original.getImageData(0, 0, elements.originalCanvas.width, elements.originalCanvas.height);
+console.log('ImageData dimensions:', imageData.width, imageData.height); // Debug
+
+// Emergency dimension sync
+elements.correctedCanvas.width = imageData.width;
+elements.correctedCanvas.height = imageData.height;
+elements.correctedCanvas.style.width = `${elements.originalCanvas.style.width}`;
+elements.correctedCanvas.style.height = `${elements.originalCanvas.style.height}`;
