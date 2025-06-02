@@ -2,59 +2,73 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI CVD Color Correction Tool</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Colorblindness Daltonization Tool</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #f9f9f9; }
+    h1 { color: #333; }
+    .container { display: flex; flex-direction: column; gap: 1rem; }
+    .preview { display: flex; gap: 2rem; flex-wrap: wrap; }
+    img { max-width: 300px; border: 1px solid #ccc; padding: 5px; }
+    button { padding: 0.5rem 1rem; }
+  </style>
 </head>
 <body>
+  <h1>Daltonize Image for Colorblind Accessibility</h1>
   <div class="container">
-    <header>
-      <h1>Color Vision Deficiency Correction</h1>
-      <p>Upload an image or use camera to experience color adjustments</p>
-    </header>
+    <input type="file" id="upload" accept="image/*">
+    <select id="type">
+      <option value="d">Deuteranopia</option>
+      <option value="p">Protanopia</option>
+      <option value="t">Tritanopia</option>
+    </select>
+    <button onclick="submitImage()">Daltonize</button>
 
-    <div class="controls">
-      <div class="control-group">
-        <input type="file" id="image-upload" accept="image/*">
-        <button id="camera-btn">Enable Camera</button>
-      </div>
-      
-      <div class="control-group">
-        <label for="cvd-type">CVD Type:</label>
-        <select id="cvd-type">
-          <option value="protanopia">Protanopia (Red-Weak)</option>
-          <option value="deuteranopia">Deuteranopia (Green-Weak)</option>
-          <option value="tritanopia">Tritanopia (Blue-Weak)</option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <label for="intensity">Intensity: <span id="intensity-value">50%</span></label>
-        <input type="range" id="intensity" min="0" max="100" value="50">
-      </div>
-
-      <button id="download-btn">Download Corrected Image</button>
-    </div>
-
-    <div class="canvas-container" style="aspect-ratio: 16/9;">
-      <div class="canvas-wrapper">
+    <div class="preview">
+      <div>
         <h3>Original</h3>
-        <canvas id="original-canvas"></canvas>
+        <img id="original" src="#" alt="Original Image" style="display:none;">
       </div>
-      <div class="canvas-wrapper">
-        <h3>Corrected</h3>
-        <canvas id="corrected-canvas"></canvas>
+      <div>
+        <h3>Daltonized</h3>
+        <img id="daltonized" src="#" alt="Daltonized Image" style="display:none;">
       </div>
     </div>
-
-    <div id="loading">
-      <div class="spinner"></div>
-      <p>Processing...</p>
-    </div>
-
-    <div id="error-message" class="hidden"></div>
   </div>
 
-  <script src="script.js"></script>
+  <script>
+    let imageFile = null;
+
+    document.getElementById("upload").addEventListener("change", function (e) {
+      imageFile = e.target.files[0];
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          document.getElementById("original").src = e.target.result;
+          document.getElementById("original").style.display = "block";
+        };
+        reader.readAsDataURL(imageFile);
+      }
+    });
+
+    function submitImage() {
+      if (!imageFile) return alert("Please upload an image.");
+
+      const formData = new FormData();
+      formData.append("image", imageFile);
+      formData.append("deficiency", document.getElementById("type").value);
+
+      fetch("/daltonize", {
+        method: "POST",
+        body: formData,
+      })
+        .then(res => res.blob())
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          const img = document.getElementById("daltonized");
+          img.src = url;
+          img.style.display = "block";
+        });
+    }
+  </script>
 </body>
 </html>
